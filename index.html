@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EasyClass | Panel de Inversiones</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Cool Slate -->
+    <!-- Application Structure Plan: A single-page dashboard architecture. The top navigation features three prominent buttons for time-sensitive blog content (Pre-Market, Intraday, Pre-Close), which reveal a modal with the relevant analysis. The main body is a two-column grid. The left column is dedicated to the company's proprietary portfolio, featuring a donut chart for asset allocation, KPI cards for overall performance, and a detailed table of holdings. The right column provides broader market context with a dynamic line chart showing major indices (S&P 500, NASDAQ, Dow Jones), switchable via tabs. This structure was chosen to provide a clear, at-a-glance view of both internal performance and external market conditions, while keeping deeper analysis (blogs) accessible but not intrusive. -->
+    <!-- Visualization & Content Choices: 
+    - Portfolio Allocation: Goal -> Organize/Inform. Viz -> Donut Chart (Chart.js). Interaction -> Hover for tooltips. Justification -> Best for showing the proportional composition of the portfolio in an easily digestible format.
+    - Portfolio Holdings & Performance: Goal -> Inform/Compare. Viz -> HTML Table. Interaction -> None. Justification -> Provides precise, granular data on each asset, including cost basis and current return, which is essential for detailed analysis.
+    - Market Index Trends: Goal -> Compare/Change. Viz -> Line Chart (Chart.js). Interaction -> Tabs to switch datasets. Justification -> Ideal for visualizing and comparing market trends over time, providing crucial context for the portfolio's performance.
+    - Daily Blog Analysis: Goal -> Inform. Viz -> Modal Window. Interaction -> Click main nav buttons to open. Justification -> Delivers timely, detailed analysis without cluttering the main data-focused dashboard.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc; /* slate-50 */
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 50vh;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+        .kpi-card {
+            border-left: 4px solid #2563eb; /* blue-600 */
+        }
+        .nav-button {
+            transition: all 0.2s ease-in-out;
+        }
+        .nav-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .modal-backdrop {
+            transition: opacity 0.3s ease;
+        }
+        .modal-content {
+            transition: transform 0.3s ease;
+        }
+        .index-tab.active {
+            background-color: #1e40af; /* blue-800 */
+            color: white;
+        }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <div id="app-container" class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <header class="flex flex-col sm:flex-row justify-between items-center pb-6 border-b border-slate-200">
+            <div>
+                <h1 class="text-3xl font-bold text-slate-900">EasyClass Inversiones</h1>
+                <p class="text-slate-500">Su centro de análisis y rendimiento de portafolio.</p>
+            </div>
+            <nav id="blog-nav" class="flex gap-2 mt-4 sm:mt-0">
+                <button data-blog="pre-market" class="nav-button bg-white hover:bg-slate-100 text-slate-700 font-semibold py-2 px-4 border border-slate-300 rounded-lg shadow-sm">
+                    Pre-Mercado
+                </button>
+                <button data-blog="intraday" class="nav-button bg-white hover:bg-slate-100 text-slate-700 font-semibold py-2 px-4 border border-slate-300 rounded-lg shadow-sm">
+                    Durante el Día
+                </button>
+                <button data-blog="pre-close" class="nav-button bg-white hover:bg-slate-100 text-slate-700 font-semibold py-2 px-4 border border-slate-300 rounded-lg shadow-sm">
+                    Pre-Cierre
+                </button>
+            </nav>
+        </header>
+
+        <main class="mt-8 grid grid-cols-1 lg:grid-cols-5 gap-8">
+            
+            <section class="lg:col-span-2 space-y-6">
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h2 class="text-xl font-bold text-slate-900 mb-4">Rendimiento del Portafolio</h2>
+                    <div class="kpi-card bg-slate-50 p-4 rounded-lg">
+                        <p class="text-sm text-slate-500">Ganancia/Pérdida Total</p>
+                        <p id="total-return" class="text-3xl font-bold"></p>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h2 class="text-xl font-bold text-slate-900 mb-4">Composición del Portafolio</h2>
+                    <div class="chart-container h-64">
+                        <canvas id="portfolioDonutChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h2 class="text-xl font-bold text-slate-900 mb-4">Activos en Cartera</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left text-slate-500">
+                            <thead class="text-xs text-slate-700 uppercase bg-slate-100">
+                                <tr>
+                                    <th scope="col" class="px-4 py-3">Activo</th>
+                                    <th scope="col" class="px-4 py-3">Precio Compra</th>
+                                    <th scope="col" class="px-4 py-3">Precio Actual</th>
+                                    <th scope="col" class="px-4 py-3">Rendimiento</th>
+                                </tr>
+                            </thead>
+                            <tbody id="portfolio-table-body">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section class="lg:col-span-3 bg-white p-6 rounded-xl shadow-md">
+                <h2 class="text-xl font-bold text-slate-900 mb-4">Análisis de Índices de Mercado</h2>
+                 <div class="flex justify-center border-b border-slate-200 mb-4">
+                    <button data-index="SP500" class="index-tab active text-sm font-medium py-2 px-4 rounded-t-lg">S&P 500</button>
+                    <button data-index="NASDAQ" class="index-tab text-sm font-medium py-2 px-4 text-slate-600 rounded-t-lg">NASDAQ</button>
+                    <button data-index="DOW" class="index-tab text-sm font-medium py-2 px-4 text-slate-600 rounded-t-lg">Dow Jones</button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="indicesLineChart"></canvas>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <div id="blog-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 opacity-0 pointer-events-none">
+        <div class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-2xl p-6 transform scale-95">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 id="blog-modal-title" class="text-xl font-bold"></h3>
+                <button id="close-modal-btn" class="text-slate-500 hover:text-slate-800">&times;</button>
+            </div>
+            <div id="blog-modal-content" class="mt-4 text-slate-600 leading-relaxed max-h-[60vh] overflow-y-auto">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const portfolioData = [
+            { ticker: 'AAPL', name: 'Apple Inc.', shares: 50, purchasePrice: 150.25, currentPrice: 195.80 },
+            { ticker: 'MSFT', name: 'Microsoft Corp.', shares: 40, purchasePrice: 280.50, currentPrice: 340.15 },
+            { ticker: 'GOOGL', name: 'Alphabet Inc.', shares: 30, purchasePrice: 110.75, currentPrice: 135.20 },
+            { ticker: 'AMZN', name: 'Amazon.com, Inc.', shares: 25, purchasePrice: 125.90, currentPrice: 133.50 },
+            { ticker: 'TSLA', name: 'Tesla, Inc.', shares: 20, purchasePrice: 250.00, currentPrice: 215.49 },
+            { ticker: 'VOO', name: 'Vanguard S&P 500 ETF', shares: 60, purchasePrice: 380.10, currentPrice: 415.75 }
+        ];
+
+        const generateDateLabels = (days) => {
+            const labels = [];
+            for (let i = days - 1; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                labels.push(d.toISOString().split('T')[0]);
+            }
+            return labels;
+        };
+
+        const generateIndexData = (base, days, volatility) => {
+            const data = [];
+            let value = base;
+            for (let i = 0; i < days; i++) {
+                data.push(value);
+                value *= 1 + (Math.random() - 0.48) * volatility;
+            }
+            return data;
+        };
+
+        const dateLabels = generateDateLabels(30);
+        const indicesData = {
+            SP500: { data: generateIndexData(4500, 30, 0.02), color: '#2563eb' },
+            NASDAQ: { data: generateIndexData(15000, 30, 0.03), color: '#16a34a' },
+            DOW: { data: generateIndexData(35000, 30, 0.015), color: '#db2777' }
+        };
+
+        const blogContent = {
+            'pre-market': {
+                title: 'Blog: Antes de que Abra el Mercado',
+                content: `<p>Buenos días, inversores. La sesión de hoy se perfila interesante con los futuros apuntando a una apertura mixta. Los datos de inflación publicados ayer en Europa están generando cautela, mientras que en Asia, los mercados cerraron al alza impulsados por el sector tecnológico.</p><p class="mt-2">Estaremos atentos a los resultados trimestrales de <strong>NVIDIA (NVDA)</strong> que se publican al cierre y que podrían marcar la pauta para el sector de semiconductores. En el frente macroeconómico, el dato de peticiones de subsidio por desempleo en EE.UU. a las 8:30 AM ET será clave. Nuestro portafolio se mantiene robusto, con una exposición equilibrada entre tecnología y ETFs de bajo costo como VOO.</p>`
+            },
+            'intraday': {
+                title: 'Blog: Análisis Durante el Día',
+                content: `<p>A media sesión, el S&P 500 cotiza con una ligera alza del 0.2%, mientras que el NASDAQ tecnológico muestra más fuerza, subiendo un 0.6%. El volumen de negociación es moderado, indicando que muchos inversores están a la espera de los resultados de NVDA.</p><p class="mt-2">Dentro de nuestro portafolio, <strong>Microsoft (MSFT)</strong> y <strong>Apple (AAPL)</strong> lideran las ganancias. Hemos observado una rotación sectorial hacia empresas de gran capitalización y calidad, lo que beneficia nuestra estrategia. <strong>Tesla (TSLA)</strong>, por otro lado, experimenta una ligera corrección tras su fuerte subida de la semana pasada. Mantenemos nuestras posiciones sin cambios, confiando en los fundamentales a largo plazo.</p>`
+            },
+            'pre-close': {
+                title: 'Blog: Perspectivas Antes del Cierre',
+                content: `<p>Entrando en la última hora de negociación, el mercado consolida sus ganancias. Parece que cerraremos la jornada en territorio positivo, un buen augurio antes del esperado informe de NVDA. La volatilidad ha disminuido considerablemente desde la apertura.</p><p class="mt-2">El rendimiento de nuestro portafolio hoy ha sido sólido, superando ligeramente al S&P 500 gracias al buen comportamiento de nuestros activos tecnológicos. La estrategia de mantener una base en VOO nos ha proporcionado la estabilidad necesaria. Mañana será un día importante para digerir los resultados de NVDA y su impacto en el mercado general. ¡Hasta mañana!</p>`
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            let indicesChart;
+
+            const populatePortfolioTable = () => {
+                const tableBody = document.getElementById('portfolio-table-body');
+                tableBody.innerHTML = '';
+                let totalReturnValue = 0;
+                let totalReturnPercentage = 0;
+                let totalInvestment = 0;
+
+                portfolioData.forEach(asset => {
+                    const investment = asset.shares * asset.purchasePrice;
+                    const currentValue = asset.shares * asset.currentPrice;
+                    const returnValue = currentValue - investment;
+                    const returnPercentage = (returnValue / investment) * 100;
+                    
+                    totalReturnValue += returnValue;
+                    totalInvestment += investment;
+
+                    const row = document.createElement('tr');
+                    row.className = 'bg-white border-b';
+                    const returnColor = returnPercentage >= 0 ? 'text-green-600' : 'text-red-600';
+
+                    row.innerHTML = `
+                        <td class="px-4 py-3 font-medium text-slate-900">${asset.ticker}</td>
+                        <td class="px-4 py-3">$${asset.purchasePrice.toFixed(2)}</td>
+                        <td class="px-4 py-3">$${asset.currentPrice.toFixed(2)}</td>
+                        <td class="px-4 py-3 font-semibold ${returnColor}">${returnPercentage.toFixed(2)}%</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+
+                totalReturnPercentage = (totalReturnValue / totalInvestment) * 100;
+                const totalReturnEl = document.getElementById('total-return');
+                const totalReturnColor = totalReturnValue >= 0 ? 'text-green-600' : 'text-red-600';
+                totalReturnEl.innerHTML = `$${totalReturnValue.toFixed(2)} <span class="text-xl ${totalReturnColor}">(${totalReturnPercentage.toFixed(2)}%)</span>`;
+            };
+
+            const renderPortfolioDonut = () => {
+                const ctx = document.getElementById('portfolioDonutChart').getContext('2d');
+                const totalValue = portfolioData.reduce((sum, asset) => sum + (asset.shares * asset.currentPrice), 0);
+                
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: portfolioData.map(a => a.ticker),
+                        datasets: [{
+                            label: 'Valor del Activo',
+                            data: portfolioData.map(a => (a.shares * a.currentPrice)),
+                            backgroundColor: ['#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#ec4899', '#64748b'],
+                            borderColor: '#ffffff',
+                            borderWidth: 2,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const value = context.raw;
+                                        const percentage = ((value / totalValue) * 100).toFixed(2);
+                                        return `${context.label}: $${value.toFixed(2)} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            };
+
+            const renderIndicesChart = (index = 'SP500') => {
+                const ctx = document.getElementById('indicesLineChart').getContext('2d');
+                const dataset = {
+                    label: index,
+                    data: indicesData[index].data,
+                    borderColor: indicesData[index].color,
+                    backgroundColor: `${indicesData[index].color}33`,
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 0,
+                };
+
+                if (indicesChart) {
+                    indicesChart.data.datasets = [dataset];
+                    indicesChart.update();
+                } else {
+                    indicesChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: dateLabels,
+                            datasets: [dataset]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                x: {
+                                    type: 'time',
+                                    time: {
+                                        unit: 'day'
+                                    },
+                                    grid: { display: false }
+                                },
+                                y: {
+                                    beginAtZero: false,
+                                    grid: { color: '#e2e8f0' }
+                                }
+                            },
+                            plugins: {
+                                legend: { display: false }
+                            }
+                        }
+                    });
+                }
+            };
+
+            document.querySelectorAll('.index-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.index-tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    renderIndicesChart(tab.dataset.index);
+                });
+            });
+
+            const modal = document.getElementById('blog-modal');
+            const closeModalBtn = document.getElementById('close-modal-btn');
+            
+            document.querySelectorAll('#blog-nav button').forEach(button => {
+                button.addEventListener('click', () => {
+                    const blogKey = button.dataset.blog;
+                    const data = blogContent[blogKey];
+                    document.getElementById('blog-modal-title').innerText = data.title;
+                    document.getElementById('blog-modal-content').innerHTML = data.content;
+                    modal.classList.remove('opacity-0', 'pointer-events-none');
+                    modal.querySelector('.modal-content').classList.remove('scale-95');
+                });
+            });
+
+            const closeModal = () => {
+                modal.classList.add('opacity-0', 'pointer-events-none');
+                modal.querySelector('.modal-content').classList.add('scale-95');
+            };
+
+            closeModalBtn.addEventListener('click', closeModal);
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    closeModal();
+                }
+            });
+
+            populatePortfolioTable();
+            renderPortfolioDonut();
+            renderIndicesChart();
+        });
+    </script>
+</body>
+</html>
