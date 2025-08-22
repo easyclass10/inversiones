@@ -1,0 +1,326 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análisis Interactivo de Volatilidad de Acciones</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutral -->
+    <!-- Application Structure Plan: La aplicación utiliza una estructura de navegación por pestañas para presentar cada acción (AZTR, EDUC, CYCU) como un caso de estudio discreto. Este diseño fue elegido para permitir a los usuarios comparar fácilmente las diferentes narrativas y catalizadores sin salir de la página. El flujo de usuario es simple: seleccionar una acción para ver un análisis profundo que combina texto, métricas clave y una visualización central (diagrama de flujo o gráfico) que resume la historia principal. Este enfoque temático, en lugar de uno lineal, mejora la comprensión y la retención al centrarse en la "razón" detrás del movimiento de cada acción. -->
+    <!-- Visualization & Content Choices: AZTR: Report Info -> Ciclo de dificultades financieras. Goal -> Explicar un proceso causal. Viz -> Diagrama de flujo HTML/CSS. Interaction -> Navegación por pestañas. Justification -> Un diagrama de flujo es superior a un gráfico para mostrar una relación de causa y efecto en bucle. Library -> HTML/CSS. | EDUC: Report Info -> Venta de activos vs. capitalización de mercado. Goal -> Resaltar una valoración masiva. Viz -> Gráfico de barras. Interaction -> Navegación por pestañas, tooltips en el gráfico. Justification -> Un gráfico de barras compara directamente dos valores, comunicando instantáneamente la escala de la transacción. Library -> Chart.js. | CYCU: Report Info -> Ingresos vs. cartera de pedidos y doble catalizador. Goal -> Mostrar el potencial de crecimiento y la sinergia. Viz -> Gráfico de barras y diagrama de sinergia HTML/CSS. Interaction -> Navegación por pestañas, tooltips. Justification -> El gráfico cuantifica el crecimiento futuro, mientras que el diagrama explica el concepto cualitativo de la sinergia. Library -> Chart.js, HTML/CSS. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f7f4;
+            color: #4a4a4a;
+        }
+        .tab-btn {
+            transition: all 0.3s ease;
+            border-bottom: 4px solid transparent;
+        }
+        .tab-btn.active {
+            border-bottom-color: #a58d78;
+            color: #333;
+        }
+        .content-section {
+            display: none;
+        }
+        .content-section.active {
+            display: block;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+        .kpi-card {
+            background-color: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .flowchart-node {
+            background-color: #fff;
+            border: 2px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            text-align: center;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            position: relative;
+        }
+        .flowchart-arrow {
+            position: absolute;
+            color: #a58d78;
+            font-size: 2rem;
+            line-height: 1;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+        
+        <header class="text-center mb-10">
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-800 mb-2">Una Historia de Tres Acciones</h1>
+            <p class="text-lg text-gray-600 max-w-3xl mx-auto">Un análisis interactivo de los catalizadores fundamentales que impulsaron la volatilidad reciente en AZTR, EDUC y CYCU.</p>
+        </header>
+
+        <nav class="flex justify-center border-b border-gray-200 mb-10">
+            <button data-target="aztr" class="tab-btn active text-lg font-semibold py-4 px-6">Azitra (AZTR)</button>
+            <button data-target="educ" class="tab-btn text-lg font-semibold py-4 px-6">Educational Dev. (EDUC)</button>
+            <button data-target="cycu" class="tab-btn text-lg font-semibold py-4 px-6">Cycurion (CYCU)</button>
+        </nav>
+
+        <main>
+            <!-- AZTR Section -->
+            <section id="aztr" class="content-section active">
+                <div class="bg-white rounded-xl shadow-lg p-6 md:p-8">
+                    <div class="text-center mb-8">
+                        <h2 class="text-3xl font-bold text-gray-800">Azitra, Inc. (AZTR)</h2>
+                        <p class="text-xl font-semibold text-red-600 flex items-center justify-center mt-2">
+                            <span class="mr-2">▼</span> CAÍDA DEL 8.90%
+                        </p>
+                        <p class="mt-4 text-gray-600 max-w-2xl mx-auto">La caída de Azitra fue una reacción del mercado a señales de graves dificultades financieras, manifestadas por una división inversa de acciones que eclipsó cualquier progreso clínico.</p>
+                    </div>
+
+                    <div class="mb-10">
+                        <h3 class="text-2xl font-semibold text-center mb-6 text-gray-700">El Ciclo de Dificultad Financiera</h3>
+                         <div class="relative grid grid-cols-1 md:grid-cols-3 gap-y-16 md:gap-x-8 md:gap-y-0 items-center">
+                            <div class="flowchart-node">
+                                <h4 class="font-bold text-gray-800">1. Escasez de Efectivo</h4>
+                                <p class="text-sm text-gray-600">Solo $1.0M en efectivo con una tasa de consumo trimestral de $1.4M.</p>
+                                <div class="flowchart-arrow right-[-1.5rem] top-1/2 -translate-y-1/2 hidden md:block">→</div>
+                                <div class="flowchart-arrow bottom-[-2.5rem] left-1/2 -translate-x-1/2 md:hidden">↓</div>
+                            </div>
+                            <div class="flowchart-node">
+                                <h4 class="font-bold text-gray-800">2. Financiación Dilutiva</h4>
+                                <p class="text-sm text-gray-600">Dependencia de una línea de crédito de capital de $20M que diluye a los accionistas existentes.</p>
+                                <div class="flowchart-arrow right-[-1.5rem] top-1/2 -translate-y-1/2 hidden md:block">→</div>
+                                <div class="flowchart-arrow bottom-[-2.5rem] left-1/2 -translate-x-1/2 md:hidden">↓</div>
+                            </div>
+                            <div class="flowchart-node">
+                                <h4 class="font-bold text-gray-800">3. División Inversa de Acciones</h4>
+                                <p class="text-sm text-gray-600">Ejecución de una división 1 por 6.66 para cumplir con las normas de la bolsa, una fuerte señal negativa para el mercado.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-2xl font-semibold mb-4 text-gray-700">Análisis Detallado</h3>
+                        <div class="space-y-4 text-gray-700">
+                            <p>El catalizador principal de la caída fue la ejecución de una división inversa de acciones. Estas acciones suelen ser percibidas negativamente por el mercado, ya que se consideran una solución cosmética para un precio de acción en declive en lugar de una solución a problemas fundamentales. El mercado interpreta la medida como una señal de debilidad financiera subyacente que *hizo necesaria* la división.</p>
+                            <p>La precaria situación financiera de Azitra es el motor fundamental del sentimiento negativo. Con solo $1.0 millón en efectivo y una tasa de consumo trimestral que supera con creces esa cantidad, la capacidad de la empresa para continuar operando es dudosa sin una financiación inmediata. Para abordar esto, Azitra recurrió a una Línea de Crédito de Capital (ELOC), una forma de financiación altamente dilutiva que ejerce una presión bajista continua sobre el precio de las acciones.</p>
+                            <p>Aunque la compañía reportó datos de seguridad prometedores en su ensayo de Fase 1b, este progreso fue completamente eclipsado por la crisis financiera. El mercado es prospectivo y entiende que la amenaza inmediata de insolvencia y la dilución de las acciones superan el potencial a largo plazo de la cartera clínica.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- EDUC Section -->
+            <section id="educ" class="content-section">
+                <div class="bg-white rounded-xl shadow-lg p-6 md:p-8">
+                    <div class="text-center mb-8">
+                        <h2 class="text-3xl font-bold text-gray-800">Educational Development Corporation (EDUC)</h2>
+                        <p class="text-xl font-semibold text-green-600 flex items-center justify-center mt-2">
+                            <span class="mr-2">▲</span> AUMENTO SIGNIFICATIVO
+                        </p>
+                        <p class="mt-4 text-gray-600 max-w-2xl mx-auto">El alza de EDUC fue una reacción directa a una transacción estratégica transformadora: la venta de un activo clave que reveló un valor oculto masivo y eliminó toda la deuda de la empresa.</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                        <div class="space-y-4">
+                             <h3 class="text-2xl font-semibold mb-4 text-gray-700">Análisis Detallado</h3>
+                            <div class="space-y-4 text-gray-700">
+                                <p>El principal impulsor fue el anuncio de la venta de su sede y centro de distribución por $32.5 millones. Para una empresa con una capitalización de mercado de aproximadamente $9.0 millones, esta única transacción fue un evento transformador, señalando que sus activos estaban enormemente infravalorados.</p>
+                                <p>El aspecto más crucial fue el uso de los ingresos: pagar toda la deuda pendiente. Este movimiento de desapalancamiento completo cambió a la empresa de un estado financieramente precario a una entidad libre de deudas, eliminando el mayor riesgo para los inversores.</p>
+                                <p>Además, la transacción mejoró inmediatamente el flujo de caja. El CEO declaró que los ahorros en intereses de la deuda eliminada excederían los nuevos pagos de alquiler, proporcionando una mejora neta en el efectivo mensual y dando a la dirección flexibilidad para centrarse en el negocio principal.</p>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-2xl font-semibold text-center mb-6 text-gray-700">Desbloqueo de Valor de Activos</h3>
+                            <div class="chart-container">
+                                <canvas id="educChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- CYCU Section -->
+            <section id="cycu" class="content-section">
+                 <div class="bg-white rounded-xl shadow-lg p-6 md:p-8">
+                    <div class="text-center mb-8">
+                        <h2 class="text-3xl font-bold text-gray-800">Cycurion, Inc. (CYCU)</h2>
+                        <p class="text-xl font-semibold text-green-600 flex items-center justify-center mt-2">
+                            <span class="mr-2">▲</span> RALLY SIGNIFICATIVO
+                        </p>
+                        <p class="mt-4 text-gray-600 max-w-2xl mx-auto">El rally de Cycurion fue impulsado por una poderosa sinergia de dos noticias: la recuperación del cumplimiento con el Nasdaq y la revelación de una enorme cartera de pedidos, cambiando la narrativa de supervivencia a crecimiento.</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                        <div class="space-y-4">
+                             <h3 class="text-2xl font-semibold mb-4 text-gray-700">Análisis Detallado</h3>
+                            <div class="space-y-4 text-gray-700">
+                                <p>El primer catalizador fue la recuperación del cumplimiento total con el Nasdaq. Esto eliminó el riesgo inminente de ser excluido de la bolsa, un "evento de despeje" que hizo que la acción fuera nuevamente invertible para un grupo mucho más amplio de capital.</p>
+                                <p>Inmediatamente después, la compañía anunció una cartera de pedidos contratados de $69 millones. Esta cartera, que es más de 4 veces la tasa de ingresos anualizada actual de $16 millones, proporcionó evidencia tangible de un crecimiento futuro significativo, validando el caso de inversión.</p>
+                                <p>El fuerte movimiento ascendente no se debió a ninguno de los eventos de forma aislada, sino al efecto sinérgico de ambos. La noticia del cumplimiento *desbloqueó* el potencial de la acción, y la noticia de la cartera de pedidos *validó* la historia de crecimiento. Esta combinación cambió la narrativa de "empresa en dificultades" a "empresa de crecimiento infravalorada", desencadenando una respuesta de compra agresiva.</p>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-2xl font-semibold text-center mb-6 text-gray-700">Potencial de Crecimiento Futuro</h3>
+                            <div class="chart-container">
+                                <canvas id="cycuChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="text-center mt-12 pt-8 border-t border-gray-200">
+            <p class="text-gray-500">Este es un análisis visual interactivo basado en datos de mercado e informes de la empresa. No constituye asesoramiento financiero.</p>
+        </footer>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const tabs = document.querySelectorAll('.tab-btn');
+            const contentSections = document.querySelectorAll('.content-section');
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const target = tab.dataset.target;
+
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+
+                    contentSections.forEach(section => {
+                        if (section.id === target) {
+                            section.classList.add('active');
+                        } else {
+                            section.classList.remove('active');
+                        }
+                    });
+                });
+            });
+
+            function createEducChart() {
+                const ctx = document.getElementById('educChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Capitalización de Mercado (Aprox.)', 'Precio de Venta del Activo'],
+                        datasets: [{
+                            label: 'Valor en Millones de USD',
+                            data: [9.0, 32.5],
+                            backgroundColor: [
+                                'rgba(255, 182, 193, 0.6)',
+                                'rgba(144, 238, 144, 0.6)'
+                            ],
+                            borderColor: [
+                                'rgba(255, 182, 193, 1)',
+                                'rgba(144, 238, 144, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Valor (en Millones de USD)'
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `$${context.raw.toFixed(1)} Millones`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            function createCycuChart() {
+                const ctx = document.getElementById('cycuChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Ingresos Anualizados Actuales', 'Cartera de Pedidos Contratados'],
+                        datasets: [{
+                            label: 'Valor en Millones de USD',
+                            data: [16, 69],
+                            backgroundColor: [
+                                'rgba(173, 216, 230, 0.6)',
+                                'rgba(152, 251, 152, 0.6)'
+                            ],
+                            borderColor: [
+                                'rgba(173, 216, 230, 1)',
+                                'rgba(152, 251, 152, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Valor (en Millones de USD)'
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `$${context.raw} Millones`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            createEducChart();
+            createCycuChart();
+        });
+    </script>
+</body>
+</html>
